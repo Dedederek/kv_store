@@ -2,6 +2,8 @@
 
 from cuda import cuda
 import time
+import torch
+import cupy
 
 get_start_addr_from_kv_id = {}
 get_max_len_from_kv_id = {}
@@ -101,10 +103,16 @@ def destory_kv(kv_id):
     if status[0] != cuda.CUresult.CUDA_SUCCESS:
         print("cuMemAddressFree failed:", status[0])
 
+# convert raw device memory to torch tensor
+def ptr_to_tensor(device_ptr: int, size: int, shape: tuple):
+    mem = cupy.cuda.UnownedMemory(device_ptr, size, None, 0)
+    memptr = cupy.cuda.MemoryPointer(mem, 0)
+    arr = cupy.ndarray(shape, dtype=cupy.float32, memptr=memptr)
+    return torch.as_tensor(arr, device="cuda")
+
 cuda.cuInit(0)
 id = create_kv(0,200000000000,1)
-addr = increase_kv_size(id, 2)
-print("addr:",addr)
+addr = increase_kv_size(id, 300)
+torch_tensor = ptr_to_tensor(addr, 300, (300,))
 addr = increase_kv_size(id, 5097153)
-print("addr:",addr)
 destory_kv(id)
